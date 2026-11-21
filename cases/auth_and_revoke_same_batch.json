@@ -1,0 +1,65 @@
+{
+  "sim_version": 1,
+  "case_id": "auth-and-revoke-same-batch",
+  "description": "In one batch the AUTH completion for alpha and a peer revocation for alpha apply together. The revocation wins: alpha's outstanding and in-use requests get a termination receipt, and a late success cannot be delivered afterwards. Beta is untouched.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 5000,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {"connection_id": "c1", "generation": 1},
+    {"connection_id": "c2", "generation": 1},
+    {"connection_id": "c3", "generation": 1}
+  ],
+  "tenants": [
+    {"tenant": "alpha", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"},
+    {"tenant": "beta", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"}
+  ],
+  "batches": [
+    {
+      "batch_id": "b01-alpha-and-beta-submit",
+      "at": 0,
+      "events": [
+        {"event_id": "e01", "type": "submit_request", "request_id": "r-alpha-live", "tenant": "alpha", "candidates": ["c1"]},
+        {"event_id": "e02", "type": "submit_request", "request_id": "r-beta", "tenant": "beta", "candidates": ["c2"]},
+        {"event_id": "e03", "type": "submit_request", "request_id": "r-alpha-waiting", "tenant": "alpha", "candidates": ["c3"]}
+      ]
+    },
+    {
+      "batch_id": "b02-both-auth",
+      "at": 10,
+      "events": [
+        {"event_id": "e04", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-1", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"},
+        {"event_id": "e05", "type": "auth_complete", "connection_id": "c2", "generation": 1, "op_id": "op-auth-c2-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b03-auth-and-revoke-same-batch",
+      "at": 20,
+      "events": [
+        {"event_id": "e07", "type": "auth_complete", "connection_id": "c3", "generation": 1, "op_id": "op-auth-c3-3", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"},
+        {"event_id": "e08", "type": "revoke_peer", "tenant": "alpha", "reason": "certificate withdrawn"}
+      ]
+    },
+    {
+      "batch_id": "b04-late-success-for-alpha",
+      "at": 30,
+      "events": [
+        {"event_id": "e09", "type": "complete_request", "request_id": "r-alpha-live", "outcome": "success"},
+        {"event_id": "e10", "type": "complete_request", "request_id": "r-alpha-waiting", "outcome": "success"}
+      ]
+    },
+    {
+      "batch_id": "b05-beta-unaffected",
+      "at": 40,
+      "events": [
+        {"event_id": "e11", "type": "complete_request", "request_id": "r-beta", "outcome": "success"}
+      ]
+    }
+  ]
+}

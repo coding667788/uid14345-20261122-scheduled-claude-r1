@@ -1,0 +1,101 @@
+{
+  "sim_version": 1,
+  "case_id": "takeover-vs-late-completion",
+  "description": "p0 starts a purge, dies, and p1 takes over the expired control lease and re-uses the connection. p0's stale purge completion arrives with the old lease generation and must be rejected; the fresh auth under p1 stands.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 100,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {"connection_id": "c1", "generation": 1}
+  ],
+  "tenants": [
+    {"tenant": "alpha", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "batch"},
+    {"tenant": "beta", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "batch"}
+  ],
+  "batches": [
+    {
+      "batch_id": "b01-warm-alpha",
+      "at": 0,
+      "events": [
+        {"event_id": "e01", "type": "submit_request", "request_id": "r-alpha", "tenant": "alpha", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b02-alpha-auth",
+      "at": 1,
+      "events": [
+        {"event_id": "e02", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-1", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b03-alpha-done",
+      "at": 2,
+      "events": [
+        {"event_id": "e03", "type": "complete_request", "request_id": "r-alpha", "outcome": "success"}
+      ]
+    },
+    {
+      "batch_id": "b04-beta-needs-purge",
+      "at": 3,
+      "events": [
+        {"event_id": "e04", "type": "submit_request", "request_id": "r-beta", "tenant": "beta", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b05-p0-exits-before-purge-completes",
+      "at": 4,
+      "events": [
+        {"event_id": "e05", "type": "worker_exit", "process_id": "p0", "reason": "killed"}
+      ]
+    },
+    {
+      "batch_id": "b06-p1-takes-over",
+      "at": 200,
+      "events": [
+        {"event_id": "e06", "type": "acquire_lease", "process_id": "p1"},
+        {"event_id": "e07", "type": "retry_op", "op_id": "op-purge-c1-2"}
+      ]
+    },
+    {
+      "batch_id": "b07-p0-completion-arrives-under-old-lease",
+      "at": 205,
+      "events": [
+        {"event_id": "e08", "type": "purge_complete", "connection_id": "c1", "generation": 1, "op_id": "op-purge-c1-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b08-p1-purge-completes",
+      "at": 210,
+      "events": [
+        {"event_id": "e09", "type": "purge_complete", "connection_id": "c1", "generation": 1, "op_id": "op-purge-c1-2", "expected_config_version": 1, "lease_generation": 2, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b09-p1-auth-completes",
+      "at": 220,
+      "events": [
+        {"event_id": "e10", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-3", "expected_config_version": 1, "lease_generation": 2, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b10-p0-stale-completion-arrives",
+      "at": 230,
+      "events": [
+        {"event_id": "e11", "type": "purge_complete", "connection_id": "c1", "generation": 1, "op_id": "op-purge-c1-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b11-beta-finishes",
+      "at": 240,
+      "events": [
+        {"event_id": "e12", "type": "complete_request", "request_id": "r-beta", "outcome": "success"}
+      ]
+    }
+  ]
+}

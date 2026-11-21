@@ -1,0 +1,66 @@
+{
+  "sim_version": 1,
+  "case_id": "barrier-auth-then-complete",
+  "description": "The AUTH completion and a request completion arrive in one barrier batch. Because events fold before the single scheduling pass, the completion is rejected as NOT_IN_USE rather than being applied out of order.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 5000,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {
+      "connection_id": "c1"
+    }
+  ],
+  "tenants": [
+    {
+      "tenant": "alpha",
+      "peer_identity_version": 1,
+      "trust_config_version": 1,
+      "purpose_level": "interactive"
+    }
+  ],
+  "batches": [
+    {
+      "batch_id": "submit",
+      "at": 0,
+      "events": [
+        {
+          "event_id": "s1",
+          "type": "submit_request",
+          "request_id": "r1",
+          "tenant": "alpha",
+          "candidates": [
+            "c1"
+          ]
+        }
+      ]
+    },
+    {
+      "batch_id": "barrier",
+      "at": 100,
+      "events": [
+        {
+          "event_id": "b1",
+          "type": "auth_complete",
+          "connection_id": "c1",
+          "generation": 1,
+          "op_id": "op-auth-c1-1",
+          "expected_config_version": 1,
+          "lease_generation": 1,
+          "outcome": "ok"
+        },
+        {
+          "event_id": "b2",
+          "type": "complete_request",
+          "request_id": "r1",
+          "outcome": "success"
+        }
+      ]
+    }
+  ]
+}

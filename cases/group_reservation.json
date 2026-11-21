@@ -1,0 +1,86 @@
+{
+  "sim_version": 1,
+  "case_id": "group-reservation-all-or-nothing",
+  "description": "A group of three wants c1,c2,c3; only c1,c2 are usable. The group takes nothing, records why c3 failed, and does not park c2. A later request for c2 proceeds, then the first group is retried when c3 frees up.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 5000,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {"connection_id": "c1", "generation": 1},
+    {"connection_id": "c2", "generation": 1},
+    {"connection_id": "c3", "generation": 1}
+  ],
+  "tenants": [
+    {"tenant": "alpha", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"}
+  ],
+  "batches": [
+    {
+      "batch_id": "b01-warm-c1-c2-and-hold-c3",
+      "at": 0,
+      "events": [
+        {"event_id": "e01", "type": "submit_request", "request_id": "r-warm-1", "tenant": "alpha", "candidates": ["c1"]},
+        {"event_id": "e02", "type": "submit_request", "request_id": "r-warm-2", "tenant": "alpha", "candidates": ["c2"]},
+        {"event_id": "e03", "type": "submit_request", "request_id": "r-holder", "tenant": "alpha", "candidates": ["c3"]}
+      ]
+    },
+    {
+      "batch_id": "b02-auth-all",
+      "at": 10,
+      "events": [
+        {"event_id": "e04", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-1", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"},
+        {"event_id": "e05", "type": "auth_complete", "connection_id": "c2", "generation": 1, "op_id": "op-auth-c2-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"},
+        {"event_id": "e06", "type": "auth_complete", "connection_id": "c3", "generation": 1, "op_id": "op-auth-c3-3", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b03-finish-warm",
+      "at": 20,
+      "events": [
+        {"event_id": "e07", "type": "complete_request", "request_id": "r-warm-1", "outcome": "success"},
+        {"event_id": "e08", "type": "complete_request", "request_id": "r-warm-2", "outcome": "success"}
+      ]
+    },
+    {
+      "batch_id": "b04-group-wants-three-but-c3-busy",
+      "at": 30,
+      "events": [
+        {"event_id": "e09", "type": "submit_request", "request_id": "r-group", "tenant": "alpha", "candidates": ["c1", "c2", "c3"], "group_size": 3}
+      ]
+    },
+    {
+      "batch_id": "b05-single-request-takes-c2",
+      "at": 40,
+      "events": [
+        {"event_id": "e10", "type": "submit_request", "request_id": "r-single", "tenant": "alpha", "candidates": ["c2"]}
+      ]
+    },
+    {
+      "batch_id": "b06-release-holder-frees-c3",
+      "at": 50,
+      "events": [
+        {"event_id": "e11", "type": "complete_request", "request_id": "r-holder", "outcome": "success"},
+        {"event_id": "e12", "type": "tick"}
+      ]
+    },
+    {
+      "batch_id": "b07-finish-single-frees-c2",
+      "at": 60,
+      "events": [
+        {"event_id": "e13", "type": "complete_request", "request_id": "r-single", "outcome": "success"}
+      ]
+    },
+    {
+      "batch_id": "b08-finish-group",
+      "at": 70,
+      "events": [
+        {"event_id": "e14", "type": "complete_request", "request_id": "r-group", "outcome": "success"}
+      ]
+    }
+  ]
+}

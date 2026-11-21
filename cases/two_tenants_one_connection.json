@@ -1,0 +1,72 @@
+{
+  "sim_version": 1,
+  "case_id": "two-tenants-one-connection",
+  "description": "Alpha uses c1, then Beta needs it: the security context differs, so the engine purges, authenticates, then hands it over. No cross-tenant reuse.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 5000,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {"connection_id": "c1", "generation": 1}
+  ],
+  "tenants": [
+    {"tenant": "alpha", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"},
+    {"tenant": "beta", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"}
+  ],
+  "batches": [
+    {
+      "batch_id": "b01-submit-alpha",
+      "at": 0,
+      "events": [
+        {"event_id": "e01", "type": "submit_request", "request_id": "r-alpha", "tenant": "alpha", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b02-auth-alpha",
+      "at": 10,
+      "events": [
+        {"event_id": "e02", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-1", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b03-finish-alpha",
+      "at": 20,
+      "events": [
+        {"event_id": "e03", "type": "complete_request", "request_id": "r-alpha", "outcome": "success", "payload": {"rows": 3}}
+      ]
+    },
+    {
+      "batch_id": "b04-submit-beta",
+      "at": 30,
+      "events": [
+        {"event_id": "e04", "type": "submit_request", "request_id": "r-beta", "tenant": "beta", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b05-purge-for-beta",
+      "at": 40,
+      "events": [
+        {"event_id": "e05", "type": "purge_complete", "connection_id": "c1", "generation": 1, "op_id": "op-purge-c1-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b06-auth-beta",
+      "at": 50,
+      "events": [
+        {"event_id": "e06", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-3", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b07-finish-beta",
+      "at": 60,
+      "events": [
+        {"event_id": "e07", "type": "complete_request", "request_id": "r-beta", "outcome": "success", "payload": {"rows": 7}}
+      ]
+    }
+  ]
+}

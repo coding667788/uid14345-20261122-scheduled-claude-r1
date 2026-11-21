@@ -1,0 +1,64 @@
+{
+  "sim_version": 1,
+  "case_id": "late-completion-after-cancel-and-reuse",
+  "description": "Request r1 authenticates, is cancelled, and its connection is reused by r2. The old AUTH completion arrives late and must not disturb r2's live context.",
+  "config": {
+    "auth_ttl_ms": 1000,
+    "lease_ttl_ms": 5000,
+    "purge_cooldown_ms": 0,
+    "max_purge_attempts": 3,
+    "max_auth_attempts": 3,
+    "initial_process": "p0",
+    "auto_lease": true
+  },
+  "connections": [
+    {"connection_id": "c1", "generation": 1}
+  ],
+  "tenants": [
+    {"tenant": "alpha", "peer_identity_version": 1, "trust_config_version": 1, "purpose_level": "interactive"}
+  ],
+  "batches": [
+    {
+      "batch_id": "b01-submit-r1",
+      "at": 0,
+      "events": [
+        {"event_id": "e01", "type": "submit_request", "request_id": "r1", "tenant": "alpha", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b02-cancel-r1",
+      "at": 5,
+      "events": [
+        {"event_id": "e02", "type": "cancel_request", "request_id": "r1", "reason": "client gone"}
+      ]
+    },
+    {
+      "batch_id": "b03-submit-r2",
+      "at": 10,
+      "events": [
+        {"event_id": "e03", "type": "submit_request", "request_id": "r2", "tenant": "alpha", "candidates": ["c1"]}
+      ]
+    },
+    {
+      "batch_id": "b04-r2-auth",
+      "at": 20,
+      "events": [
+        {"event_id": "e04", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-2", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b05-late-auth-completion-for-r1",
+      "at": 30,
+      "events": [
+        {"event_id": "e05", "type": "auth_complete", "connection_id": "c1", "generation": 1, "op_id": "op-auth-c1-1", "expected_config_version": 1, "lease_generation": 1, "outcome": "ok"}
+      ]
+    },
+    {
+      "batch_id": "b06-finish-r2",
+      "at": 40,
+      "events": [
+        {"event_id": "e06", "type": "complete_request", "request_id": "r2", "outcome": "success"}
+      ]
+    }
+  ]
+}
